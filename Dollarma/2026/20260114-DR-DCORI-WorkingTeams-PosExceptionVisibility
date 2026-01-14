@@ -1,0 +1,148 @@
+# Architecture Decision Record (ADR): POS Exceptions Assignment Behavior for Team Leaders and Team Members
+
+### Submitters
+
+- Patrick Valenzuela (Applaudo Studios)
+- Luisa Dalponte (Applaudo Studios)
+- Gérémy Cloutier Gill (Dollarama)
+- Armando Rivera (Applaudo Studios)
+
+
+## Change Log
+
+- [approved](https://applaudostudios.atlassian.net/browse/VCS-555) 2026-01-14
+
+
+## Referenced Use Case(s)
+
+- [POS Exceptions Management – Team Leaders and Team Members](https://applaudostudios.atlassian.net/browse/VCS-555)
+
+This ADR clarifies expected behavior for POS Exceptions assignment in the Viewing Center System (VCS) DCORI module for team leaders versus team members when using the POS Exceptions dashboard in production (PROD - dcori.dollarama.com).
+
+This ADR does not introduce new functional requirements; instead, it documents and confirms the currently implemented behavior as the intended, correct behavior.
+
+
+## Context
+
+The Jira issue [VCS-555](https://applaudostudios.atlassian.net/browse/VCS-555) reported the following:
+
+- **Environment:** PROD – dcori.dollarama.com  
+- **Platform:** Web  
+- **Observed Behavior:** When a team leader requests POS Exceptions from the POS Exceptions dashboard for a given week, those exceptions are **not** automatically assigned to the rest of the team members. Team members must request POS Exceptions manually.
+- **Initial Expected Behavior in the Bug Report:**  
+  As part of the sorting process, if the team leader has requested exceptions from the POS Exceptions dashboard for a certain week, all team members should have those exceptions assigned automatically as well.
+
+This discrepancy led to the belief that there was a backend bug (“Wrong Result from Backend Logic”) where the sorting process or assignment did not propagate POS Exceptions from team leaders to team members.
+
+After functional clarification with the Viewing Center team, it was confirmed that:
+
+- The **current behavior is in fact the expected behavior**.
+- Each user (team leader or team member) must manually request their own POS Exceptions, irrespective of working team configuration or what has been assigned to other users.
+
+The issue was therefore not an architectural or implementation defect but a misunderstanding of the intended domain behavior. Given that this misunderstanding recurred at the level of production usage and was tracked as a backend bug, this ADR is warranted to:
+
+- Make the behavior explicit and discoverable at the architecture/design level.
+- Prevent future, repeated “bug” reports around the same behavior.
+- Provide traceable documentation for product and QA regarding expected behavior.
+
+
+## Proposed Design
+
+The proposed design is to **keep and formalize** the existing behavior:
+
+1. **Per-User POS Exceptions Requests**
+   - POS Exceptions are requested and assigned on a **per-user basis**.
+   - A request initiated by a **team leader** affects **only that leader’s** POS Exceptions workflow and assignments.
+   - Team members of the same working team do **not** automatically receive the same POS Exceptions as the team leader.
+
+2. **No Implicit Propagation Across Working Teams**
+   - The system maintains **no implicit propagation mechanism** from a team leader to team members for POS Exceptions.
+   - Working team configuration is *not* used as a driver to replicate POS Exceptions assignments from one user to others.
+
+3. **User Flow (Functional View)**
+   - Admin user navigates to the POS Exceptions dashboard.
+   - Team leader requests POS Exceptions for the desired period.
+   - Team member(s) must independently log into DCORI and request POS Exceptions through the dashboard for themselves.
+   - Sorting and assignment logic operates on the requesting user’s context only.
+
+4. **Backend / Service-Level Impact**
+   - **Services/modules impacted (changed):** None. Existing behavior is confirmed and preserved.
+   - **New services/modules to be added:** None.
+   - **Model and DTO impact:** No changes; existing user-scoped models and DTOs remain as-is.
+   - **API impact:** No changes to endpoints, contracts, or response payloads.
+   - **Configuration impact:**  
+     - No new configuration keys or flags introduced.
+     - No configuration linking working team definitions to automatic POS Exceptions propagation.
+   - **DevOps impact:** None. No deployments or configuration toggles are required.
+
+The core design principle is **explicit per-user action** for POS Exceptions, with **no automatic cross-user assignment** derived from team leader actions.
+
+
+## Considerations
+
+Several alternative behaviors and concerns were discussed or implied through the lifecycle of VCS-555:
+
+1. **Alternative A – Automatic Propagation from Team Leader to Team Members**
+   - **Idea:** When a team leader requests POS Exceptions for a given period, the system automatically assigns the same exceptions to all team members.
+   - **Concerns:**
+     - May not align with existing operational or auditing requirements determined by the Viewing Center team.
+     - Could create over-assignment or unintended workloads for team members who might not require the same exceptions.
+     - Introduces additional complexity in both logic and configuration (e.g., partial propagation, exceptions, overrides).
+   - **Resolution:** Rejected. Domain owners confirmed that the **current non-propagating behavior is expected**.
+
+2. **Alternative B – Configurable Propagation Mode**
+   - **Idea:** Introduce a configuration flag (per-environment, per-client, or per-team) that controls whether team leaders’ requests propagate to members.
+   - **Concerns:**
+     - Increases configuration surface area and potential for misconfiguration.
+     - Requires additional testing and regression coverage for multiple modes.
+     - No immediate domain requirement justifying this complexity.
+   - **Resolution:** Deferred / Not implemented. The ADR documents the current simpler, single-mode behavior.
+
+3. **UX and Documentation Considerations**
+   - The confusion that led to VCS-555 suggests that the UI and/or user documentation may not clearly state that POS Exceptions are **per-user** and not shared from the leader.
+   - While outside the scope of this ADR (which focuses on architecture and behavior), there is an implied **documentation/UX action item**:
+     - Clarify in help texts, tooltips, or user guides that:
+       - “Any user must manually request POS Exceptions, regardless of working teams configuration and POS Exceptions assigned to other users, like the team leader.”
+
+4. **Testing and QA**
+   - QA expectations were initially aligned with the “propagation” assumption.
+   - This ADR serves as a canonical reference for QA to assert that:
+     - The behavior “team leader exceptions not visible or auto-assigned to members” is **correct** and should be preserved in regression suites.
+
+
+## Decision
+
+- The behavior reported in [VCS-555](https://applaudostudios.atlassian.net/browse/VCS-555) is **confirmed as correct and expected**:
+  - **Decision:**  
+    POS Exceptions requested via the POS Exceptions dashboard are **not** automatically assigned or made visible to other team members, even if:
+    - The requester is designated as team leader.
+    - Team relationships exist through Working Teams configuration.
+
+- **Key implementation implications:**
+  - Keep the current backend logic that scopes POS Exceptions requests and results to the **requesting user**.
+  - Do **not** introduce cross-user propagation in the sorting or assignment process tied to team roles.
+  - Preserve existing service, model, API, and configuration behavior as-is.
+
+- **Requirements not satisfied / out of scope of this ADR:**
+  - Any requirement that assumes or desires:
+    - Automatic “fan-out” from team leader to team members.
+    - Configurable propagation rules.
+    - Shared or pooled POS Exceptions across team members.
+  - Such capabilities, if desired in the future, must be captured in new use cases and addressed via a separate ADR.
+
+- **Ticket outcome:**
+  - Based on [Gérémy Cloutier Gill’s](https://applaudostudios.atlassian.net/browse/VCS-555?focusedCommentId=320172) confirmation (“Current behavior matches expected behavior.”) and [Armando Rivera’s](https://applaudostudios.atlassian.net/browse/VCS-555?focusedCommentId=320185) follow-up (“I’ll proceed to close the bug”), VCS-555 is treated as a **misunderstanding** of expected behavior and is **closed without code changes**.
+
+
+## Other Related ADRs
+
+- None explicitly identified at the time of writing.  
+  If future ADRs introduce propagation or sharing semantics for POS Exceptions or team-based assignment, they should reference this ADR as the baseline behavior it amends or replaces.
+
+
+## References
+
+- [Jira Issue VCS-555 – BE - [Sorting Process] - POS exceptions requested by a team leader not available for other members](https://applaudostudios.atlassian.net/browse/VCS-555)
+- [Comment confirming expected behavior – Gérémy Cloutier Gill](https://applaudostudios.atlassian.net/browse/VCS-555?focusedCommentId=320172)
+- [Comment closing the bug – Armando Rivera](https://applaudostudios.atlassian.net/browse/VCS-555?focusedCommentId=320185)
+- [EdgeX Foundry ADR Template](https://docs.edgexfoundry.org/2.3/design/adr/template/)
