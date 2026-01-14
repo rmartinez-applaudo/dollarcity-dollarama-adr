@@ -1,0 +1,87 @@
+# Remove Local Authentication in DCORI-Dollarama
+
+Dollarama requires the complete removal of local user authentication within DCORI to enhance the security and integrity of its access control systems. By eliminating local login options, password reset functionalities, and local user management, the organization aims to centralize all authentication processes through Microsoft SSO. This approach mitigates the risks associated with maintaining separate local credentials, such as potential password reuse, weak password policies, and unauthorized access due to overlooked local accounts.
+
+Transitioning exclusively to Microsoft SSO ensures that only users authenticated through Active Directory can access DCORI, aligning with Dollarama’s corporate security standards and compliance requirements. This change not only streamlines user management but also provides a unified and auditable access control mechanism, reducing administrative overhead and improving the organization’s overall security posture.
+
+Source: https://applaudostudios.atlassian.net/browse/VCS-239
+
+
+### Submitters
+
+- Andrea Erroa (Applaudo)
+- Geremy Coultier (Dollarama)
+- Ricardo Martinez (Applaudo)
+
+## Change Log
+
+N/A
+
+## Referenced Use Case(s)
+
+List all relevant use case / requirements documents.
+
+ADR requires at least one relevant, approved use case.
+
+
+-[Removing Local Authentication](https://applaudostudios.atlassian.net/browse/VCS-239)
+
+## Context
+
+Describe:
+
+- It's been Geremy's request to remove local users for DCORI and authenticate only with Azure EntraID 
+
+- the high level design approach (details described in the proposed design below)
+
+
+## Proposed Design
+
+Details of the design (without getting into implementation where possible).
+
+Outline:
+
+- services/modules to be impacted (changed)
+
+- new services/modules to be added
+
+- model and DTO impact (changes/additions/removals)
+
+- API impact (changes/additions/removals)
+
+- general configuration impact (establishment of new sections, changes/additions/removals)
+
+- devops impact
+
+
+## Considerations
+
+Document alternatives, concerns, ancillary or related issues, questions that arose in debate of the ADR. 
+
+Indicate if/how they were resolved or mollified.
+
+
+## Decision
+
+Document any agreed upon important implementation detail, caveats, future considerations, remaining or deferred design issues.
+
+Document any part of the requirements not satisfied by the proposed design.
+
+
+## Other Related ADRs
+N/A
+
+
+## References
+
+List additional references.
+
+- [BE - Reset Password Validation on AD Users](https://applaudostudios.atlassian.net/browse/VCS-549)
+
+- [FE - Remove Local User Management Options](https://applaudostudios.atlassian.net/browse/VCS-243)
+
+- [FE - Remove Local Login and Password Reset Screens](https://applaudostudios.atlassian.net/browse/VCS-242)
+
+- [BE - Remove Local User Accounts from the System](https://applaudostudios.atlassian.net/browse/VCS-241)
+
+- [Removing Local Authentication](https://applaudostudios.atlassian.net/browse/VCS-239)
