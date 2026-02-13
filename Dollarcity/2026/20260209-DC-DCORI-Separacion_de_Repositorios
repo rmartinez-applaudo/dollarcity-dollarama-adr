@@ -1,0 +1,229 @@
+### Architecture Decision Record (ADR): Separación de repositorios Dollarama / Dollarcity
+
+Basado en el ticket: [MDCORI-41 - Separación de repositorios Dollarama / Dollarcity](https://applaudostudios.atlassian.net/browse/MDCORI-41)  
+Proyecto: *MDCORI – Mejoras DCORI – Dollarcity*
+
+---
+
+### Submitters
+
+- Ricardo Martínez (Applaudo Studios)
+
+---
+
+## Change Log
+
+- [approved](https://applaudostudios.atlassian.net/browse/MDCORI-41) 2026-02-05
+
+Estado: **approved** (la decisión ya fue implementada y el ticket está en estado *Done*).
+
+---
+
+## Referenced Use Case(s)
+
+- **Mejoras DCORI – Dollarcity independientes de Dollarama**  
+  (backlog y alcance representados en el proyecto Jira MDCORI: https://applaudostudios.atlassian.net/jira/software/c/projects/MDCORI/boards/4320)
+
+Esta ADR atiende específicamente el requerimiento de independencia técnica y de operación entre Dollarama y Dollarcity. Otros requerimientos funcionales y de negocio se documentan en historias y épicas del proyecto MDCORI, pero no forman parte del alcance de esta decisión arquitectónica.
+
+---
+
+## Context
+
+Actualmente existía un acoplamiento fuerte entre los desarrollos de **Dollarama** y **Dollarcity** debido a:
+
+- Repositorios de código **compartidos** para ambos clientes.
+- Pipelines de CI/CD configurados sobre esos repositorios compartidos.
+- Configuraciones de accesos y permisos **no aisladas** por proyecto/cliente.
+- Riesgo de **impactos cruzados** (cambios o despliegues para un cliente afectando al otro).
+
+El objetivo del proyecto **MDCORI – Mejoras DCORI – Dollarcity** es habilitar un flujo de trabajo que permita desarrollar, probar y desplegar mejoras para Dollarcity de forma **independiente y controlada**, sin depender del ciclo de vida de Dollarama.
+
+El ticket [MDCORI-41](https://applaudostudios.atlassian.net/browse/MDCORI-41) plantea explícitamente:
+
+> *Como equipo de desarrollo, quiero separar los repositorios de código de Dollarama y Dollarcity, para garantizar independencia técnica, control de accesos y evitar impactos cruzados entre proyectos.*
+
+La separación de repositorios se considera **arquitectónicamente significativa** porque:
+
+- Impacta el **modelo de delivery** (cómo construimos, integramos y desplegamos).
+- Cambia la **topología de repositorios**, permisos y pipelines.
+- Afecta la **gobernanza del código**, trazabilidad y ownership por cliente.
+- Es un prerrequisito para tickets posteriores como:
+  - [MDCORI-42 - Configuración de pipelines de CI/CD basado en nuevos repos Dollarcity](https://applaudostudios.atlassian.net/browse/MDCORI-42).
+
+---
+
+## Proposed Design
+
+Diseño propuesto para la separación de repositorios entre Dollarama y Dollarcity.
+
+### 1. Servicios / módulos impactados
+
+- Todos los **repositorios de código compartidos** que contienen lógica o configuraciones para:
+  - Dollarama
+  - Dollarcity
+- Pipelines de CI/CD asociados (ver relación con [MDCORI-42](https://applaudostudios.atlassian.net/browse/MDCORI-42)).
+- Configuraciones de acceso a repositorios y permisos por equipo.
+
+### 2. Nuevo modelo de repositorios
+
+- Crear **repositorios independientes** por cliente:
+  - Repositorios específicos para **Dollarama**.
+  - Repositorios específicos para **Dollarcity**.
+- Garantizar que:
+  - No exista código de Dollarama en repositorios de Dollarcity.
+  - No exista código de Dollarcity en repositorios de Dollarama.
+- Definir una **estructura base estándar** por repositorio (ejemplo general):
+  - `/src` – código fuente de la aplicación.
+  - `/config` – configuraciones específicas del cliente/entorno.
+  - `/docs` – documentación relevante al proyecto/cliente.
+  - `/ci-cd` o archivos de pipeline en el root – definición de pipelines.
+  - `/tests` – pruebas automáticas.
+
+> Esta estructura base es importante para que futuras automatizaciones (pipelines, análisis, calidad) puedan asumir una convención coherente entre repos.
+
+### 3. Accesos y permisos
+
+- Configurar **accesos por proyecto**:
+  - Equipos/usuarios que trabajan en Dollarcity tendrán permisos alineados a los repos de Dollarcity.
+  - Equipos/usuarios que trabajan en Dollarama tendrán permisos alineados a los repos de Dollarama.
+- Separar:
+  - Grupos de lectura/escritura por cliente.
+  - Roles administrativos y de mantenimiento de repositorios.
+- Beneficios:
+  - Reducción de riesgo de commits accidentales en el repo incorrecto.
+  - Mayor control de quién puede desplegar qué y para quién.
+
+### 4. Impacto en CI/CD (relación con MDCORI-42)
+
+Aunque el diseño detallado de pipelines se define en [MDCORI-42](https://applaudostudios.atlassian.net/browse/MDCORI-42), esta ADR establece los principios:
+
+- **Un pipeline por repositorio**:
+  - Cada repositorio Dollarcity tendrá su propio pipeline.
+  - Cada repositorio Dollarama tendrá su propio pipeline.
+- **Ejecución por contexto**:
+  - Ejecutar pipelines automáticamente al crear *pull requests* y/o al hacer cambios en la rama principal del repositorio correspondiente.
+- **Aislamiento**:
+  - Los pipelines de Dollarcity deben apuntar únicamente a repositorios e infra de Dollarcity.
+  - Los pipelines de Dollarama deben apuntar únicamente a repositorios e infra de Dollarama.
+
+### 5. Trazabilidad y alineación con Jira
+
+- Asociar repositorios Dollarcity con el proyecto Jira **MDCORI**.
+- Asegurar que las ramas y commits referencien claves de Jira (por ejemplo, `MDCORI-41`, `MDCORI-42`, etc.) para:
+  - Mejor trazabilidad de cambios.
+  - Reportes claros por cliente/proyecto.
+
+---
+
+## Considerations
+
+Se evaluaron las siguientes alternativas y puntos de debate:
+
+### Alternativa A: Mantener repos compartidos con ramas por cliente
+
+- **Descripción**: Un solo repositorio con ramas o carpetas específicas (`/dollarama`, `/dollarcity`).
+- **Ventajas**:
+  - Menos repositorios que administrar.
+  - Reutilización fácil de código común.
+- **Desventajas**:
+  - Mayor riesgo de **impactos cruzados**:
+    - Cambios para un cliente afectando al otro.
+    - Configuraciones de despliegue compartidas y frágiles.
+  - Complejidad en pipelines:
+    - Lógica condicional para saber qué construir/desplegar según carpeta/branch.
+  - Menor claridad de ownership:
+    - Dificultad para separar responsabilidades por equipo/cliente.
+  - Control de accesos más complejo:
+    - No se puede aislar con suficiente granularidad sin soluciones ad hoc.
+
+**Conclusión**: Descartada por mantener un acoplamiento demasiado fuerte y no cumplir adecuadamente con el objetivo de independencia técnica y de control de accesos.
+
+---
+
+### Alternativa B: Monorepo por dominio con configuración multi-cliente
+
+- **Descripción**: Monorepo único por dominio (por ejemplo, “app móvil”) con configuración por cliente (feature flags, config por entorno).
+- **Ventajas**:
+  - Reutilización de código a nivel máximo.
+  - Visibilidad centralizada de todas las variantes de clientes.
+- **Desventajas**:
+  - Persisten los riesgos de impactos cruzados.
+  - Dificultad de versionado independiente por cliente:
+    - Una versión para Dollarcity puede requerir sincronización con cambios para Dollarama.
+  - Dependencia fuerte entre equipos y release trains.
+  - Complejidad adicional de configuración y pruebas.
+
+**Conclusión**: Descartada para este contexto, donde la prioridad es **independencia operacional y de despliegue por cliente**, no la centralización del código a toda costa.
+
+---
+
+### Alternativa C (Seleccionada): Repositorios independientes por cliente
+
+- **Descripción**: Repos específicos para Dollarama y repos específicos para Dollarcity, con pipelines, accesos y configuraciones aisladas.
+- **Ventajas**:
+  - Alineada con el objetivo del proyecto: independencia técnica y de despliegue.
+  - Facilita la configuración de pipelines por repositorio (MDCORI-42).
+  - Permite control de accesos por cliente/proyecto de forma natural.
+  - Disminuye el riesgo de errores humanos al trabajar con múltiples clientes.
+  - Mejora la claridad de ownership y accountability.
+- **Desventajas**:
+  - Requiere establecer mecanismos claros para **reutilización de código común** (por ejemplo, librerías compartidas).
+  - Más repositorios que gestionar a nivel de plataforma.
+
+**Conclusión**: Seleccionada como la opción que mejor balancea independencia, gobernanza y claridad operacional.
+
+---
+
+## Decision
+
+Se aprueba la **separación de repositorios entre Dollarama y Dollarcity** bajo los siguientes lineamientos:
+
+1. **Repositorios separados por cliente**
+   - Se crean y mantienen repositorios exclusivos para Dollarama.
+   - Se crean y mantienen repositorios exclusivos para Dollarcity.
+   - No debe existir código específico de un cliente en el repositorio del otro.
+
+2. **Estructura base definida por repositorio**
+   - Cada repositorio debe seguir una estructura base estándar (código, config, docs, tests, pipelines) para facilitar la operación, el onboarding y la automatización.
+
+3. **Accesos configurados por proyecto/cliente**
+   - Se definen grupos/roles por cliente que controlan lectura/escritura y administración.
+   - Se minimizan los accesos cruzados para reducir riesgos de cambios no deseados.
+
+4. **Pipelines apuntando al repositorio correspondiente**
+   - Todo pipeline de CI/CD se asocia de forma unívoca a un repositorio y a un cliente.
+   - Las automatizaciones de build, validaciones y despliegues se definen considerando únicamente el contexto del repositorio (relacionado con [MDCORI-42](https://applaudostudios.atlassian.net/browse/MDCORI-42)).
+
+5. **Trazabilidad con Jira**
+   - Commits, ramas y PRs relacionados con Dollarcity se vinculan al proyecto **MDCORI**.
+   - Esta decisión es un habilitador directo del objetivo del sprint “Preparar la base técnica, de accesos y de alineación inicial para iniciar el desarrollo de Mejoras DCORI de Dollarcity de forma independiente y controlada.”
+
+### Requerimientos no cubiertos por esta ADR
+
+- Definición detallada de:
+  - Pipelines específicos (stages, jobs, herramientas CI/CD).
+  - Configuración de entornos y credenciales (dev, QA, prod).
+  - Estrategia de librerías compartidas entre clientes.
+- Estos puntos se abordan en otros tickets/ADRs, por ejemplo:
+  - [MDCORI-42](https://applaudostudios.atlassian.net/browse/MDCORI-42) para CI/CD.
+  - Spikes y tareas relacionadas con credenciales, accesos y entornos de despliegue.
+
+---
+
+## Other Related ADRs
+
+*(A completar cuando existan otros ADRs formales para MDCORI; referencias previstas)*
+
+- ADR: Configuración de pipelines CI/CD por repositorio Dollarcity (relacionado con [MDCORI-42](https://applaudostudios.atlassian.net/browse/MDCORI-42)) – Profundiza en la implementación de CI/CD sobre la nueva topología de repos.
+
+---
+
+## References
+
+- [MDCORI-41 - Separación de repositorios Dollarama / Dollarcity](https://applaudostudios.atlassian.net/browse/MDCORI-41)  
+- [MDCORI Board - MDCORI Sprint 0](https://applaudostudios.atlassian.net/jira/software/c/projects/MDCORI/boards/4320)  
+- [MDCORI-42 - Configuración de pipelines de CI/CD basado en nuevos repos Dollarcity](https://applaudostudios.atlassian.net/browse/MDCORI-42)  
+- Plantilla ADR EdgeX Foundry: https://docs.edgexfoundry.org/2.3/design/adr/template/  
+
+
